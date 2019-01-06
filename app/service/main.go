@@ -14,6 +14,8 @@ import (
 	"github.com/olivere/elastic"
 	"github.com/pborman/uuid"
 	"google.golang.org/api/option"
+
+	"cloud.google.com/go/bigtable"
 )
 
 const (
@@ -23,9 +25,13 @@ const (
 	POST_TYPE = "post"
 
 	DISTANCE = "200km"
-	ES_URL   = "http://35.227.48.101:9200"
+	ES_URL   = "http://35.196.31.182:9200"
 	//GCS的bucket name
-	BUCKET_NAME = "yunhaoguo-post-images"
+	BUCKET_NAME = "yunhaoguo-around-post-images"
+
+	PROJECT_ID      = "around-227621"
+	BT_INSTANCE     = "around-post"
+	ENABLE_BIGTABLE = true
 )
 
 type Location struct {
@@ -91,6 +97,11 @@ func handlerPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("Saved one post to ElasticSearch: %s", p.Message)
+
+	if ENABLE_BIGTABLE {
+		saveToBigTable(p, id)
+	}
+
 }
 
 func handlerSearch(w http.ResponseWriter, r *http.Request) {
@@ -156,6 +167,31 @@ func createIndexIfNotExist() {
 	}
 }
 
+//Save a post to BigTable
+func saveToBigTable(p *Post, id string) {
+	ctx := context.Background()
+	bt_client, err := bigtable.NewClient(ctx, PROJECT_ID, BT_INSTANCE, option.WithCredentialsFile("service-account-key.json"))
+	if err != nil {
+		panic(err)
+		return
+	}
+	tbl := bt_client.Open("post")
+	mut := bigtable.NewMutation()
+	t := bigtable.Now()
+	mut.Set("post", "user", t, []byte(p.User))
+	mut.Set("post", "message", t, []byte(p.Message))
+	mut.Set("location", "lat", t, []byte(strconv.FormatFloat(p.Location.Lat, 'f', -1, 64)))
+	mut.Set("location", "lon", t, []byte(strconv.FormatFloat(p.Location.Lon, 'f', -1, 64)))
+
+	err = tbl.Apply(ctx, id, mut)
+	if err != nil {
+		panic(err)
+		return
+	}
+	fmt.Printf("Post is saved to BigTable: %s\n", p.Message)
+
+}
+
 // Save a post to ElasticSearch
 func saveToES(post *Post, id string) error {
 	client, err := elastic.NewClient(elastic.SetURL(ES_URL), elastic.SetSniff(false))
@@ -219,7 +255,7 @@ func saveToGCS(r io.Reader, bucketName, objectName string) (*storage.ObjectAttrs
 	ctx := context.Background()
 
 	// Creates a client.
-	client, err := storage.NewClient(ctx, option.WithCredentialsFile("Around-4e39f1d4097c.json"))
+	client, err := storage.NewClient(ctx, option.WithCredentialsFile("service-account-key.json"))
 	if err != nil {
 		return nil, err
 	}
