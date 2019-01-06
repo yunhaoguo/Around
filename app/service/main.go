@@ -29,9 +29,10 @@ const (
 	//GCS的bucket name
 	BUCKET_NAME = "yunhaoguo-around-post-images"
 
-	PROJECT_ID      = "around-227621"
-	BT_INSTANCE     = "around-post"
-	ENABLE_BIGTABLE = true
+	PROJECT_ID  = "around-227621"
+	BT_INSTANCE = "around-post"
+	//Initially we close BigTable to save money
+	ENABLE_BIGTABLE = false
 )
 
 type Location struct {
@@ -146,8 +147,9 @@ func createIndexIfNotExist() {
 		panic(err)
 	}
 
-	//额外需求的属性需要特殊说明，但比如user,msg的string就不需要
-	//这里的post是table
+	//extra special attribute needs extra statement,
+	//but user or msg which are strings are not needed
+	//post is table here
 	if !exists {
 		mapping := `{
             "mappings": {
