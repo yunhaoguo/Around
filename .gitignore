@@ -1,1 +1,7 @@
 **/service-account-key.json
+**/target
+**/.settings
+**/.project
+**/.factorypath
+**/.classpath
+**/test
