@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"cloud.google.com/go/storage"
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
@@ -290,7 +291,9 @@ func readFromES(lat, lon float64, ran string) ([]Post, error) {
 	var posts []Post
 	for _, item := range searchResult.Each(reflect.TypeOf(ptyp)) {
 		if p, ok := item.(Post); ok {
-			posts = append(posts, p)
+			if !containsFilteredWords(&p.Message) {
+				posts = append(posts, p)
+			}
 		}
 	}
 
@@ -331,4 +334,18 @@ func saveToGCS(r io.Reader, bucketName, objectName string) (*storage.ObjectAttrs
 
 	fmt.Printf("Image is saved to GCS: %s\n", attrs.MediaLink)
 	return attrs, nil
+}
+
+func containsFilteredWords(s *string) bool {
+	filteredWords := []string{
+		"fuck",
+		"shit",
+		"ass",
+	}
+	for _, word := range filteredWords {
+		if strings.Contains(*s, word) {
+			return true
+		}
+	}
+	return false
 }
