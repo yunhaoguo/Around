@@ -39,7 +39,7 @@ public class PostDumpFlow {
                .withTableId("post")
                .build();
                
-        //read data from BitTable
+       //read data from BigTable
        PCollection<Result> btRows = p.apply(Read.from(CloudBigtableIO.read(config)));
        //Transformation
        PCollection<TableRow> bqRows = btRows.apply(ParDo.of(new DoFn<Result, TableRow>() {
